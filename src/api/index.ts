@@ -167,10 +167,10 @@ export const api = new ApiClient();
 // API 方法定义
 export const authApi = {
   login: (username: string, password: string) =>
-    api.post<{ token: string; user: any }>('/auth/login', { username, password }),
+    api.post<{ token: string; user: any }>('/auth', { action: 'login', username, password }),
   getCurrentUser: () => api.get<any>('/auth/me'),
   changePassword: (oldPassword: string, newPassword: string) =>
-    api.post('/auth/change-password', { old_password: oldPassword, new_password: newPassword }),
+    api.post('/auth', { action: 'change-password', old_password: oldPassword, new_password: newPassword }),
 };
 
 export const detectApi = {

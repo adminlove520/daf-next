@@ -1,8 +1,7 @@
 /**
  * 认证相关 API
- * POST /api/v1/auth/login - 登录
+ * POST /api/v1/auth - 登录 (通过 action 参数区分登录和修改密码)
  * GET /api/v1/auth/me - 获取当前用户信息
- * POST /api/v1/auth/change-password - 修改密码
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,13 +11,10 @@ import { verifyPassword, generateToken, extractToken, verifyToken, hashPassword 
 // POST - 登录或修改密码
 export async function POST(req: NextRequest) {
   try {
-    const url = new URL(req.url);
-    const pathParts = url.pathname.split('/').filter(Boolean);
-    const lastPart = pathParts[pathParts.length - 1];
+    const body = await req.json();
+    const { action, username, password, old_password, new_password } = body;
 
-    if (lastPart === 'login') {
-      const { username, password } = await req.json();
-
+    if (action === 'login') {
       if (!username || !password) {
         return NextResponse.json({
           success: false,
@@ -82,7 +78,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (lastPart === 'change-password') {
+    if (action === 'change-password') {
       const token = extractToken(req.headers.get('authorization'));
       if (!token) {
         return NextResponse.json({
@@ -98,8 +94,6 @@ export async function POST(req: NextRequest) {
           message: '无效的认证令牌',
         }, { status: 401 });
       }
-
-      const { old_password, new_password } = await req.json();
 
       if (!old_password || !new_password) {
         return NextResponse.json({
