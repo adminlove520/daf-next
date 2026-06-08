@@ -10,6 +10,7 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/svg+xml" href="/logo.svg" />
         <link rel="stylesheet" href="/admin/assets/index-pU-2o11r.css" />
+        <script type="module" src="/admin/assets/index-DO3FWv5D.js" />
       </head>
       <body style={{ margin: 0, padding: 0 }}>{children}</body>
     </html>
