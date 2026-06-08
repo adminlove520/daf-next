@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { configDb } from '@/lib/db';
 import { extractToken, verifyToken } from '@/lib/auth';
 import { initializeDetector } from '@/lib/detector';
+import { checkAIConfig } from '@/lib/ai-service';
 
 // 认证中间件
 async function authenticate(req: NextRequest, requireAdmin: boolean = false) {
@@ -30,16 +31,26 @@ async function authenticate(req: NextRequest, requireAdmin: boolean = false) {
   return { payload };
 }
 
-// 获取配置
+// GET - 获取配置
 export async function GET(req: NextRequest) {
   try {
-    const auth = await authenticate(req, false);
+    const auth = await authenticate(req);
     if (auth.error) {
       return NextResponse.json({ success: false, message: auth.error }, { status: auth.status });
     }
 
     const config = await configDb.get();
-    return NextResponse.json({ success: true, data: config });
+
+    // 检查 AI 配置状态
+    const aiStatus = await checkAIConfig();
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...config,
+        ai: aiStatus,
+      },
+    });
   } catch (error: any) {
     return NextResponse.json({
       success: false,
@@ -48,7 +59,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// 更新配置
+// POST - 更新配置
 export async function POST(req: NextRequest) {
   try {
     const auth = await authenticate(req, true);

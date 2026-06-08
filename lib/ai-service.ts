@@ -5,6 +5,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
+import { prisma } from './prisma';
 
 export interface AIWordUpdate {
   word: string;
@@ -21,24 +22,60 @@ export interface AIWordUpdateResult {
 }
 
 /**
+ * 获取 AI 配置
+ */
+async function getAIConfig() {
+  const config = await prisma.systemConfig.findUnique({
+    where: { key: 'ai_config' },
+  });
+
+  if (!config) {
+    return {
+      enabled: false,
+      provider: 'openai',
+      model: 'gpt-4',
+      endpoint: '',
+      apiKey: '',
+      maxTokens: 1000,
+      temperature: 0.3,
+      timeout: 30,
+      threshold: 0.7,
+    };
+  }
+
+  return JSON.parse(config.value);
+}
+
+/**
  * 从 AI 获取敏感词更新
  */
 export async function getWordUpdatesFromAI(
   prompt: string,
-  provider: 'anthropic' | 'openai',
   categories: Record<string, string>
 ): Promise<AIWordUpdateResult> {
   try {
+    const config = await getAIConfig();
+
+    if (!config.enabled || !config.apiKey) {
+      return {
+        success: false,
+        added: 0,
+        updated: 0,
+        error: 'AI 功能未启用或 API Key 未配置',
+      };
+    }
+
     let aiResponse: string;
 
-    if (provider === 'anthropic') {
+    if (config.provider === 'anthropic') {
       const anthropic = new Anthropic({
-        apiKey: process.env.ANTHROPIC_API_KEY || '',
+        apiKey: config.apiKey,
+        baseURL: config.endpoint || undefined,
       });
 
       const message = await anthropic.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 4096,
+        model: config.model,
+        maxTokens: config.maxTokens,
         messages: [
           {
             role: 'user',
@@ -53,8 +90,7 @@ export async function getWordUpdatesFromAI(
   }
 ]
 
-可用的分类：${Object.keys(categories).join(', ')}
-`,
+可用的分类：${Object.keys(categories).join(', ')}`,
           },
         ],
       });
@@ -62,11 +98,12 @@ export async function getWordUpdatesFromAI(
       aiResponse = message.content[0].type === 'text' ? message.content[0].text : '';
     } else {
       const openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY || '',
+        apiKey: config.apiKey,
+        baseURL: config.endpoint || undefined,
       });
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4',
+        model: config.model,
         messages: [
           {
             role: 'system',
@@ -84,7 +121,7 @@ export async function getWordUpdatesFromAI(
 可用的分类：${Object.keys(categories).join(', ')}`,
           },
         ],
-        temperature: 0.3,
+        temperature: config.temperature,
       });
 
       aiResponse = response.choices[0].message.content || '';
@@ -131,23 +168,27 @@ function parseAIResponse(response: string): AIWordUpdate[] {
  */
 export async function expandWordLibrary(
   theme: string,
-  category: string,
-  provider: 'anthropic' | 'openai' = 'openai'
+  category: string
 ): Promise<AIWordUpdateResult> {
   const prompt = `请为主题"${theme}"生成相关的敏感词列表。
 所有词汇应该属于分类：${category}。
 每个词汇都需要提供详细的原因说明。
 请生成 10-20 个相关的敏感词。`;
 
-  return getWordUpdatesFromAI(prompt, provider, {});
+  // 获取分类
+  const categories = await prisma.category.findMany();
+  const categoryMap = Object.fromEntries(
+    categories.map(c => [c.key, c.name])
+  );
+
+  return getWordUpdatesFromAI(prompt, categoryMap);
 }
 
 /**
  * 使用 AI 分析和更新现有敏感词
  */
 export async function analyzeAndUpdateWords(
-  text: string,
-  provider: 'anthropic' | 'openai' = 'openai'
+  text: string
 ): Promise<AIWordUpdateResult> {
   const prompt = `请分析以下文本，提取其中可能包含的敏感词：
 ${text}
@@ -157,5 +198,24 @@ ${text}
 2. 分类到合适的类别（political, pornography, violence, gambling, drugs, profanity, discrimination, scam, advertisement, illegalurl）
 3. 提供原因说明`;
 
-  return getWordUpdatesFromAI(prompt, provider, {});
+  // 获取分类
+  const categories = await prisma.category.findMany();
+  const categoryMap = Object.fromEntries(
+    categories.map(c => [c.key, c.name])
+  );
+
+  return getWordUpdatesFromAI(prompt, categoryMap);
+}
+
+/**
+ * 检查 AI 配置状态
+ */
+export async function checkAIConfig() {
+  const config = await getAIConfig();
+  return {
+    enabled: config.enabled,
+    configured: !!config.apiKey,
+    provider: config.provider,
+    model: config.model,
+  };
 }

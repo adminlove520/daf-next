@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractToken, verifyToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { expandWordLibrary, getWordUpdatesFromAI } from '@/lib/ai-service';
+import { expandWordLibrary, getWordUpdatesFromAI, checkAIConfig } from '@/lib/ai-service';
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,7 +34,25 @@ export async function POST(req: NextRequest) {
       }, { status: 403 });
     }
 
-    const { theme, category, provider = 'openai', prompt, customCategories } = await req.json();
+    // 检查 AI 配置
+    const aiStatus = await checkAIConfig();
+    if (!aiStatus.configured) {
+      return NextResponse.json({
+        success: false,
+        message: 'AI 功能未配置，请先在系统配置中设置 AI Provider 和 API Key',
+        data: aiStatus,
+      }, { status: 400 });
+    }
+
+    if (!aiStatus.enabled) {
+      return NextResponse.json({
+        success: false,
+        message: 'AI 功能未启用',
+        data: aiStatus,
+      }, { status: 400 });
+    }
+
+    const { theme, category, prompt, customCategories } = await req.json();
 
     // 获取分类
     const categories = await prisma.category.findMany();
@@ -45,10 +63,10 @@ export async function POST(req: NextRequest) {
     let result;
     if (prompt) {
       // 自定义提示词
-      result = await getWordUpdatesFromAI(prompt, provider, customCategories || categoryMap);
+      result = await getWordUpdatesFromAI(prompt, customCategories || categoryMap);
     } else if (theme && category) {
       // 使用主题扩展
-      result = await expandWordLibrary(theme, category, provider);
+      result = await expandWordLibrary(theme, category);
     } else {
       return NextResponse.json({
         success: false,
@@ -60,8 +78,8 @@ export async function POST(req: NextRequest) {
       // 记录失败历史
       await prisma.wordUpdateHistory.create({
         data: {
-          provider,
-          model: provider === 'anthropic' ? 'claude-3-5-sonnet' : 'gpt-4',
+          provider: aiStatus.provider,
+          model: aiStatus.model,
           prompt: prompt || `扩展主题：${theme}, 分类：${category}`,
           addedWords: 0,
           updatedWords: 0,
@@ -104,8 +122,8 @@ export async function POST(req: NextRequest) {
     // 记录成功历史
     await prisma.wordUpdateHistory.create({
       data: {
-        provider,
-        model: provider === 'anthropic' ? 'claude-3-5-sonnet' : 'gpt-4',
+        provider: aiStatus.provider,
+        model: aiStatus.model,
         prompt: prompt || `扩展主题：${theme}, 分类：${category}`,
         addedWords: addedCount,
         updatedWords: 0,
@@ -113,12 +131,20 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // 重新初始化检测器
+    try {
+      const { initializeDetector } = await import('@/lib/detector');
+      await initializeDetector();
+    } catch (detectorError) {
+      console.error('重新初始化检测器失败:', detectorError);
+    }
+
     return NextResponse.json({
       success: true,
       data: {
         added: addedCount,
         total: result.words?.length || 0,
-        words: result.words,
+        words: result.words?.slice(0, 10), // 只返回前 10 个作为示例
       },
       message: `成功添加 ${addedCount} 个敏感词`,
     });
