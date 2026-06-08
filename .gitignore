@@ -39,3 +39,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# data directory
+.data/
+
+# prisma
+*.db
+*.db-journal
+prisma/migrations/
+
+# backup files
+*.bak
+*.ts.bak
+*.vue.bak

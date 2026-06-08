@@ -1,0 +1,131 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 用户模型
+model User {
+  id           String    @id @default(uuid())
+  username     String    @unique
+  passwordHash String    @map("password_hash")
+  roles        String    @default("user") // JSON string: ["admin", "word_manager"]
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+// 敏感词模型
+model SensitiveWord {
+  id        String    @id @default(uuid())
+  word      String    @unique
+  category  String
+  reason    String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("sensitive_words")
+}
+
+// 分类配置
+model Category {
+  id        String    @id @default(uuid())
+  key       String    @unique
+  name      String
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("categories")
+}
+
+// 系统配置
+model SystemConfig {
+  id        String    @id @default(uuid())
+  key       String    @unique
+  value     String    // JSON string
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("system_configs")
+}
+
+// Access Key
+model AccessKey {
+  id           String    @id @default(uuid())
+  name         String
+  description  String?
+  accessKey    String    @unique @map("access_key")
+  secretKey    String    @map("secret_key")
+  permissions  String    // JSON string
+  ipWhitelist  String?   @map("ip_whitelist") // JSON string array
+  rateLimit    Int       @default(1000) @map("rate_limit")
+  expiresAt    DateTime? @map("expires_at")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("access_keys")
+}
+
+// 检测日志
+model DetectionLog {
+  id           String    @id @default(uuid())
+  text         String
+  hasSensitive Boolean   @default(false) @map("has_sensitive")
+  category     String?
+  username     String?
+  matchCount   Int       @default(0) @map("match_count")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@map("detection_logs")
+}
+
+// 登录日志
+model LoginLog {
+  id        String    @id @default(uuid())
+  username  String
+  success   Boolean
+  ip        String?
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("login_logs")
+}
+
+// WebScan 任务
+model ScanTask {
+  id          String    @id @default(uuid())
+  config      String    // JSON string
+  status      String    @default("pending") // pending, running, completed, failed, cancelled
+  progress    Int       @default(0)
+  startTime   DateTime? @map("start_time")
+  endTime     DateTime? @map("end_time")
+  result      String?   // JSON string
+  error       String?
+  createdBy   String    @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("scan_tasks")
+}
+
+// AI 词汇更新历史
+model WordUpdateHistory {
+  id            String    @id @default(uuid())
+  provider      String    // anthropic or openai
+  model         String
+  prompt        String
+  addedWords    Int       @default(0) @map("added_words")
+  updatedWords  Int       @default(0) @map("updated_words")
+  status        String    // success, error
+  errorMessage  String?   @map("error_message")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@map("word_update_history")
+}
