@@ -19,7 +19,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: 'public/admin',
+    outDir: 'dist',
     assetsDir: 'assets',
     emptyOutDir: true,
   },
