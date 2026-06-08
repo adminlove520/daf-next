@@ -8,6 +8,7 @@
     "dev:client": "vite",
     "build": "vite build",
     "build:api": "prisma generate && next build",
+    "build:all": "vite build && prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint"
@@ -43,6 +44,7 @@
     "concurrently": "^10.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
+    "less": "^4.6.4",
     "null-loader": "^4.0.1",
     "prisma": "^5.22.0",
     "tailwindcss": "^4",

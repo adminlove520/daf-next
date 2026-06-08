@@ -31,12 +31,6 @@
     "**/*.mts"
   ],
   "exclude": [
-    "node_modules",
-    "src",
-    "app/views",
-    "app/views.bak",
-    "app/*.vue.bak",
-    "app/*.ts.bak"
-  ],
-  "exclude": ["node_modules"]
+    "node_modules"
+  ]
 }
