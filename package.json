@@ -7,13 +7,15 @@
     "dev:api": "next dev",
     "dev:client": "vite",
     "build": "vite build",
-    "build:api": "next build",
+    "build:api": "prisma generate && next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.102.0",
     "@arco-design/web-vue": "^2.58.0",
+    "@prisma/client": "^5.22.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "axios": "^1.17.0",
