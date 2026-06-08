@@ -11,10 +11,6 @@
     }
   ],
   "env": {
-    "JWT_SECRET": "@jwt_secret",
-    "DATABASE_URL": "@database_url",
-    "ANTHROPIC_API_KEY": "@anthropic_api_key",
-    "OPENAI_API_KEY": "@openai_api_key",
     "NODE_ENV": "production"
   },
   "headers": [
